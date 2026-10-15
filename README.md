@@ -22,7 +22,7 @@ CodeCommit のリポジトリ群を Claude（Amazon Bedrock）で読み解き、
 | `terraform/` | VPC・endpoints・SQS/DLQ・S3・DynamoDB・ECS Fargate（0〜N autoscale）・AgentCore Runtime/Memory・IAM |
 | `worker/` | SQS → clone → 選別・分割 → Claude (map-reduce, prompt cache) → S3。JSON ログ・ハートビート |
 | `agent/` | AgentCore Runtime のエントリポイント（Strands）。tools: analyze_repo / job_status / list_analyses / get_analysis |
-| `scripts/` | `wsl-setup.sh`・`batch-analyze.sh`・`analyze-prompt.md`（手元で回す）、`diagnose_timeout.py`（120s の切り分け）、`enqueue.py`（手投入） |
+| `scripts/` | `wsl-setup.sh`・`batch-analyze.sh`・`analyze-prompt.md`（手元で回す）、`install-hooks.sh`＋`hooks/post-commit`（コミットごとに差分で更新）、`diagnose_timeout.py`（120s の切り分け）、`enqueue.py`（手投入） |
 | `docs/` | [claude-code-on-bedrock](docs/claude-code-on-bedrock.md) · [design](docs/design.md) · [diagnose-timeout](docs/diagnose-timeout.md) · [runbook](docs/runbook.md) |
 
 ## 使う

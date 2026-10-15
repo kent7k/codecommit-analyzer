@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# git post-commit hook: 前回の解析以降の差分だけ Claude に渡して ANALYSIS.md を更新する。
+# コミットは待たせない（バックグラウンド）。ログは .git/claude-analyze.log。
+# インストール: scripts/install-hooks.sh <repo-dir>
+# 無効化:       CLAUDE_ANALYZE=0 git commit ...
+set -u
+
+[ "${CLAUDE_ANALYZE:-1}" = "0" ] && exit 0
+command -v claude >/dev/null || exit 0
+
+ROOT=$(git rev-parse --show-toplevel)
+GITDIR=$(git rev-parse --git-dir)
+LOG="$GITDIR/claude-analyze.log"
+MARK="$GITDIR/claude-analyze.last"       # 最後に解析した commit
+LOCK="$GITDIR/claude-analyze.lock"
+PROMPT_DIR="${CLAUDE_ANALYZE_PROMPTS:-$HOME/.config/codecommit-analyzer}"
+HEAD_SHA=$(git rev-parse HEAD)
+
+# 直前の解析が走っていたら今回は飛ばす（次のコミットで拾う）
+if [ -e "$LOCK" ] && kill -0 "$(cat "$LOCK" 2>/dev/null)" 2>/dev/null; then
+  echo "[claude-analyze] previous run still going, skip $HEAD_SHA" >> "$LOG"
+  exit 0
+fi
+
+(
+  echo "$$" > "$LOCK"
+  trap 'rm -f "$LOCK"' EXIT
+  cd "$ROOT" || exit 0
+  echo "=== $(date -Is) $HEAD_SHA" >> "$LOG"
+
+  if [ -f ANALYSIS.md ] && [ -s "$MARK" ] && git cat-file -e "$(cat "$MARK")" 2>/dev/null; then
+    base=$(cat "$MARK")
+    changed=$(git diff --name-only "$base" HEAD | wc -l | tr -d ' ')
+    if [ "$changed" = "0" ]; then
+      echo "no changes since $base" >> "$LOG"; exit 0
+    fi
+    prompt=$(cat "$PROMPT_DIR/update-prompt.md" 2>/dev/null || cat <<'EOF'
+ANALYSIS.md はこのリポジトリの SRE 向け解析です。下の差分（前回の解析以降のコミット）を読み、
+ANALYSIS.md のうち変わった部分だけを更新してください。章立ては変えない。変わっていない章は触らない。
+根拠のパスを添える。推測は「未解決の問い」へ。ANALYSIS.md 以外は作らない・変えない。
+EOF
+)
+    diff_text=$(git log --oneline "$base..HEAD"; echo; git diff --stat "$base" HEAD; echo; git diff "$base" HEAD -- . ':(exclude)*.lock' ':(exclude)package-lock.json' | head -c 400000)
+    printf '%s\n\n--- diff since %s ---\n%s\n' "$prompt" "$base" "$diff_text" \
+      | claude -p --model "${CLAUDE_ANALYZE_MODEL:-jp.anthropic.claude-opus-5-5}" \
+          --allowedTools "Read,Grep,Glob,Write(ANALYSIS.md)" --output-format text >> "$LOG" 2>&1
+  else
+    # 初回は全文解析（scripts/analyze-prompt.md と同じ章立て）
+    prompt=$(cat "$PROMPT_DIR/analyze-prompt.md" 2>/dev/null || echo "この repo を SRE 向けに読み解き ANALYSIS.md に書いてください。根拠のパスを添える。")
+    printf '%s\n' "$prompt" \
+      | claude -p --model "${CLAUDE_ANALYZE_MODEL:-jp.anthropic.claude-opus-5-5}" \
+          --allowedTools "Read,Grep,Glob,LS,Bash(git log:*),Bash(git ls-files:*),Write(ANALYSIS.md)" \
+          --output-format text >> "$LOG" 2>&1
+  fi
+  rc=$?
+  [ $rc -eq 0 ] && echo "$HEAD_SHA" > "$MARK"
+  echo "exit=$rc" >> "$LOG"
+  # ANALYSIS.md は unstaged のまま置く。中身を見て納得したら次のコミットに含める。
+) >/dev/null 2>&1 &
+
+exit 0

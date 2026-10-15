@@ -63,6 +63,26 @@ PARALLEL=3 FALLBACK_MODEL=jp.anthropic.claude-opus-5-5 MODEL=global.anthropic.cl
 各 repo に `ANALYSIS.md`、`out/<repo>.md` と `out/INDEX.md` ができる。
 プロンプトは `scripts/analyze-prompt.md`（章立て固定）。
 
+## コミットのたびに更新する（git hook）
+
+```bash
+scripts/install-hooks.sh repos/*        # batch-analyze.sh で clone した全部に
+scripts/install-hooks.sh ~/src/some-repo
+```
+
+post-commit で裏に `claude -p` が走る。初回は全文、2 回目からは**前回の解析以降の diff だけ**を渡して
+ANALYSIS.md の変わった章だけ直す（安い・速い）。コミットは待たせない。結果は unstaged のまま置くので、
+中身を見て納得したら次のコミットに含める。
+
+- ログ `<repo>/.git/claude-analyze.log`、最後に解析した commit は `.git/claude-analyze.last`
+- 一時停止 `CLAUDE_ANALYZE=0 git commit …`、外す `rm .git/hooks/claude-analyze.post-commit`
+- モデル `CLAUDE_ANALYZE_MODEL=global.anthropic.claude-fable-5-1`
+- 既存の post-commit（gitleaks 等）があれば置き換えず 1 行を足して連結する
+- プロンプトは `~/.config/codecommit-analyzer/{analyze,update}-prompt.md`（install 時に写す。直してよい）
+
+「誰が push しても」にしたいときは CodeCommit trigger → EventBridge → SQS → `terraform/` の基盤。
+これが基盤の本来の出番。
+
 ## 120s で落ちない理由
 
 Claude Code は常にストリーミングで、長い生成を前提に作られている。プロトタイプが落ちた
