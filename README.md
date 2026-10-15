@@ -22,8 +22,8 @@ CodeCommit のリポジトリ群を Claude（Amazon Bedrock）で読み解き、
 | `terraform/` | VPC・endpoints・SQS/DLQ・S3・DynamoDB・ECS Fargate（0〜N autoscale）・AgentCore Runtime/Memory・IAM |
 | `worker/` | SQS → clone → 選別・分割 → Claude (map-reduce, prompt cache) → S3。JSON ログ・ハートビート |
 | `agent/` | AgentCore Runtime のエントリポイント（Strands）。tools: analyze_repo / job_status / list_analyses / get_analysis |
-| `scripts/` | `diagnose_timeout.py`（120s の切り分け）、`enqueue.py`（手投入） |
-| `docs/` | [design](docs/design.md) · [diagnose-timeout](docs/diagnose-timeout.md) · [runbook](docs/runbook.md) |
+| `scripts/` | `wsl-setup.sh`・`batch-analyze.sh`・`analyze-prompt.md`（手元で回す）、`diagnose_timeout.py`（120s の切り分け）、`enqueue.py`（手投入） |
+| `docs/` | [claude-code-on-bedrock](docs/claude-code-on-bedrock.md) · [design](docs/design.md) · [diagnose-timeout](docs/diagnose-timeout.md) · [runbook](docs/runbook.md) |
 
 ## 使う
 
@@ -38,15 +38,15 @@ make validate test lint        # AWS 不要
 - CI は AWS に触らない（lint・test・validate・gitleaks）。
 - pre-commit: gitleaks / terraform fmt+validate / ruff。
 
-## 手元で Claude Code を Bedrock で使う（基盤とは別の話）
+## まず手元で：Claude Code を Bedrock で使う（基盤は要らない）
 
 ```bash
-export CLAUDE_CODE_USE_BEDROCK=1 AWS_REGION=ap-northeast-1 AWS_PROFILE=<sso>
-export ANTHROPIC_MODEL=jp.anthropic.claude-opus-5-5
-claude
+bash scripts/wsl-setup.sh <sso-profile>              # WSL に Claude Code + Bedrock 設定
+AWS_PROFILE=<sso-profile> scripts/batch-analyze.sh   # 全 repo を headless で解析 → out/
 ```
 
-1 つの repo を自分で読み解くだけならこれで足りる。この基盤は「複数 repo を一括・定期で解析して残す」ため。
+手順・モデルの選び方（Fable 5.1 と Opus 5.5）は [docs/claude-code-on-bedrock.md](docs/claude-code-on-bedrock.md)。
+この基盤（`terraform/`）は「チームで共有・定期実行・PC 無しで動く」が要るようになってから。
 
 ## License
 
