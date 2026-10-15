@@ -73,3 +73,12 @@
 - **長期 Memory の戦略**：要約・意味記憶を足すか。今は短期だけ。
 - **CodeCommit 側のイベント連動**：push で自動解析するなら EventBridge（別リージョン→バス転送）。
 - **Fable 5.1**：会社が `global.` と AWS review を呑むなら候補に戻す。
+
+## 残り（まだ確かめていない・まだ作っていない）
+
+- 実アカウントでの `terraform apply` と、worker・agent のイメージの build。
+- WSL での確認：`claude.ai/install.sh`、`awsAuthRefresh`、`--allowedTools "Write(ANALYSIS.md)"` の書き方、
+  `--fallback-model` が Fable の refusal で切り替わるか。
+- 基盤側のモデル連鎖：Fable 5.1（global）→ Opus 5.5（jp）→ Opus 5.5（global）。refusal が出たら
+  そのジョブの間は下の段に留まる。`worker/analyzer/llm.py`・config・terraform の IAM に組み込む（設計は済み、組み込みはまだ）。
+- Converse 経由の refusal を Strands がどの StopReason で返すか（agent 側のフォールバック判定に要る）。
