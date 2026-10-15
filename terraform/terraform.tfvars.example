@@ -1,0 +1,15 @@
+# terraform.tfvars にコピーして埋める（terraform.tfvars は gitignore 済み）
+project           = "cc-analyzer"
+aws_region        = "ap-northeast-1"
+target_aws_region = "ap-northeast-3"
+
+# 解析を許すリポジトリ名（最小権限）。空リストなら target リージョンの全部。
+codecommit_repository_names = ["example-repo"]
+
+# jp. で国内完結。global. にするなら bedrock_foundation_model_ids も確認。
+bedrock_model_id             = "jp.anthropic.claude-opus-5-5"
+bedrock_foundation_model_ids = ["anthropic.claude-opus-5-5"]
+
+worker_cpu       = 2048
+worker_memory    = 4096
+worker_max_tasks = 3

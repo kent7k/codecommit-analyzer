@@ -1,0 +1,57 @@
+# 公開 repo の CI は AWS に触らない（秘密を持たない）。
+# デプロイは手元か、別途 OIDC で組む（docs/runbook.md）。
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: worker lint + test
+        working-directory: worker
+        run: |
+          uv sync --dev
+          uv run ruff check .
+          uv run ruff format --check .
+          uv run pytest -q
+      - name: agent lint
+        working-directory: agent
+        run: |
+          uv sync --dev
+          uv run ruff check .
+          uv run ruff format --check .
+
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.13.0"
+      - name: fmt
+        working-directory: terraform
+        run: terraform fmt -check -recursive
+      - name: validate
+        working-directory: terraform
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate
+
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

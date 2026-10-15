@@ -1,0 +1,34 @@
+# 環境固有の値は一切コミットしない
+terraform/terraform.tfvars
+terraform/backend.tf
+terraform/*.tfvars
+!terraform/terraform.tfvars.example
+**/.terraform/
+**/.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+
+# ローカルの実験出力
+.env
+.env.*
+!.env.example
+out/
+tmp/
+*.log
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
